@@ -1,5 +1,5 @@
 {
-  "name": "extra/wechat-work-msg-audit-bundle",
+  "name": "tourze/wechat-work-msg-audit-bundle",
   "description": "会话内容存档",
   "type": "symfony-bundle",
   "license": "MIT",
