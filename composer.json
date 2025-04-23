@@ -17,7 +17,9 @@
     "mochat/wework-finance-sdk": "^1.1",
     "tourze/doctrine-snowflake-bundle": "0.0.*",
     "tourze/wechat-work-bundle": "0.0.*",
-    "tourze/easy-admin-attribute": "0.0.*"
+    "tourze/easy-admin-attribute": "0.0.*",
+    "tourze/enum-extra": "~0.0.5",
+    "nesbot/carbon": "^2.72 || ^3"
   },
   "autoload": {
     "psr-4": {
