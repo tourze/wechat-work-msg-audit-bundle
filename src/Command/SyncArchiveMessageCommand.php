@@ -4,7 +4,7 @@ namespace WechatWorkMsgAuditBundle\Command;
 
 use Carbon\Carbon;
 use Doctrine\ORM\EntityManagerInterface;
-use FileSystemBundle\Service\MountManager;
+use League\Flysystem\FilesystemOperator;
 use MoChat\WeWorkFinanceSDK\Provider\FFIProvider;
 use MoChat\WeWorkFinanceSDK\WxFinanceSDK;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -30,7 +30,7 @@ class SyncArchiveMessageCommand extends Command
     public function __construct(
         private readonly CorpRepository $corpRepository,
         private readonly AgentRepository $agentRepository,
-        private readonly MountManager $mountManager,
+        private readonly FilesystemOperator $mountManager,
         private readonly ArchiveMessageRepository $messageRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {

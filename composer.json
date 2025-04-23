@@ -19,6 +19,7 @@
     "tourze/wechat-work-bundle": "0.0.*",
     "tourze/easy-admin-attribute": "0.0.*",
     "tourze/enum-extra": "~0.0.5",
+    "league/flysystem": "^3.0",
     "nesbot/carbon": "^2.72 || ^3"
   },
   "autoload": {
