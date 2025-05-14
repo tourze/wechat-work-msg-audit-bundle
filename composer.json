@@ -5,6 +5,7 @@
   "license": "MIT",
   "require": {
     "php": "^8.1",
+    "doctrine/collections": "^2.3",
     "doctrine/dbal": "^4.0",
     "doctrine/doctrine-bundle": "^2.13",
     "doctrine/orm": "^3.0",
@@ -25,6 +26,7 @@
     "tourze/enum-extra": "~0.0.5",
     "tourze/http-client-bundle": "0.1.*",
     "tourze/symfony-cron-job-bundle": "0.1.*",
+    "tourze/symfony-snowflake-bundle": "0.0.*",
     "tourze/wechat-work-bundle": "0.1.*"
   },
   "require-dev": {
