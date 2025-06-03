@@ -2,185 +2,285 @@
 
 namespace WechatWorkMsgAuditBundle\Tests\Entity;
 
-use DateTime;
+use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
-use WechatWorkBundle\Entity\Corp;
+use Tourze\WechatWorkContracts\CorpInterface;
 use WechatWorkMsgAuditBundle\Entity\ArchiveMessage;
 
 class ArchiveMessageTest extends TestCase
 {
-    public function testDefaultValues(): void
+    private ArchiveMessage $entity;
+
+    protected function setUp(): void
     {
-        $message = new ArchiveMessage();
-        
-        $this->assertNull($message->getId());
-        $this->assertEquals([], $message->getContext());
-        $this->assertNull($message->getCorp());
-        $this->assertNull($message->getMsgId());
-        $this->assertNull($message->getAction());
-        $this->assertNull($message->getFromUserId());
-        $this->assertEquals([], $message->getToList());
-        $this->assertNull($message->getMsgTime());
-        $this->assertNull($message->getSeq());
-        $this->assertNull($message->getRoomId());
-        $this->assertNull($message->getMsgType());
-        $this->assertEquals([], $message->getContent());
+        $this->entity = new ArchiveMessage();
     }
-    
-    public function testIdGetterSetter(): void
+
+    public function test_id_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
+        $this->assertNull($this->entity->getId());
         
-        // 注意：ID是由Doctrine生成的，因此我们只能测试getter
-        $this->assertNull($message->getId());
+        // ID通常由Snowflake生成器自动设置，这里测试getter
+        $reflection = new \ReflectionClass($this->entity);
+        $property = $reflection->getProperty('id');
+        $property->setAccessible(true);
+        $property->setValue($this->entity, '123456789');
+        
+        $this->assertSame('123456789', $this->entity->getId());
     }
-    
-    public function testContextGetterSetter(): void
+
+    public function test_context_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
-        $context = ['test' => 'value', 'nested' => ['data' => true]];
+        $this->assertSame([], $this->entity->getContext());
         
-        $result = $message->setContext($context);
+        $context = [
+            'msgid' => '16666922367251035000_1668250656103',
+            'action' => 'send',
+            'time' => 1668250655937,
+        ];
         
-        $this->assertSame($message, $result);
-        $this->assertEquals($context, $message->getContext());
+        $this->entity->setContext($context);
+        $this->assertSame($context, $this->entity->getContext());
         
         // 测试null值
-        $message->setContext(null);
-        $this->assertNull($message->getContext());
+        $this->entity->setContext(null);
+        $this->assertNull($this->entity->getContext());
     }
-    
-    public function testCorpGetterSetter(): void
+
+    public function test_msgId_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
-        $corp = $this->createMock(Corp::class);
+        $this->assertNull($this->entity->getMsgId());
         
-        $result = $message->setCorp($corp);
-        
-        $this->assertSame($message, $result);
-        $this->assertSame($corp, $message->getCorp());
-        
-        // 测试null值
-        $result = $message->setCorp(null);
-        $this->assertNull($message->getCorp());
-    }
-    
-    public function testMsgIdGetterSetter(): void
-    {
-        $message = new ArchiveMessage();
         $msgId = '16666922367251035000_1668250656103';
-        
-        $result = $message->setMsgId($msgId);
-        
-        $this->assertSame($message, $result);
-        $this->assertEquals($msgId, $message->getMsgId());
+        $this->entity->setMsgId($msgId);
+        $this->assertSame($msgId, $this->entity->getMsgId());
     }
-    
-    public function testActionGetterSetter(): void
+
+    public function test_action_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
-        $action = 'send';
+        $this->assertNull($this->entity->getAction());
         
-        $result = $message->setAction($action);
+        $this->entity->setAction('send');
+        $this->assertSame('send', $this->entity->getAction());
         
-        $this->assertSame($message, $result);
-        $this->assertEquals($action, $message->getAction());
+        $this->entity->setAction('recall');
+        $this->assertSame('recall', $this->entity->getAction());
+        
+        $this->entity->setAction('switch');
+        $this->assertSame('switch', $this->entity->getAction());
     }
-    
-    public function testFromUserIdGetterSetter(): void
+
+    public function test_fromUserId_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
-        $userId = 'user123';
+        $this->assertNull($this->entity->getFromUserId());
         
-        $result = $message->setFromUserId($userId);
-        
-        $this->assertSame($message, $result);
-        $this->assertEquals($userId, $message->getFromUserId());
+        $userId = 'felix_ye';
+        $this->entity->setFromUserId($userId);
+        $this->assertSame($userId, $this->entity->getFromUserId());
         
         // 测试null值
-        $result = $message->setFromUserId(null);
-        $this->assertNull($message->getFromUserId());
+        $this->entity->setFromUserId(null);
+        $this->assertNull($this->entity->getFromUserId());
     }
-    
-    public function testToListGetterSetter(): void
+
+    public function test_toList_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
-        $toList = ['user1', 'user2', 'user3'];
+        $this->assertSame([], $this->entity->getToList());
         
-        $result = $message->setToList($toList);
+        $toList = ['user1', 'user2', 'external_user1'];
+        $this->entity->setToList($toList);
+        $this->assertSame($toList, $this->entity->getToList());
         
-        $this->assertSame($message, $result);
-        $this->assertEquals($toList, $message->getToList());
-        
-        // 测试空数组值（不能设置为null）
-        $result = $message->setToList([]);
-        $this->assertEquals([], $message->getToList());
+        // 测试空数组
+        $this->entity->setToList([]);
+        $this->assertSame([], $this->entity->getToList());
     }
-    
-    public function testMsgTimeGetterSetter(): void
+
+    public function test_msgTime_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
-        $dateTime = new DateTime('2023-01-01 10:00:00');
+        $this->assertNull($this->entity->getMsgTime());
         
-        $result = $message->setMsgTime($dateTime);
+        $time = new \DateTime('2023-11-15 10:30:00');
+        $this->entity->setMsgTime($time);
+        $this->assertSame($time, $this->entity->getMsgTime());
         
-        $this->assertSame($message, $result);
-        $this->assertSame($dateTime, $message->getMsgTime());
+        // 测试Carbon实例
+        $carbonTime = Carbon::now();
+        $this->entity->setMsgTime($carbonTime);
+        $this->assertSame($carbonTime, $this->entity->getMsgTime());
     }
-    
-    public function testSeqGetterSetter(): void
+
+    public function test_seq_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
-        $seq = 123;
+        $this->assertNull($this->entity->getSeq());
         
-        $result = $message->setSeq($seq);
+        $this->entity->setSeq(16);
+        $this->assertSame(16, $this->entity->getSeq());
         
-        $this->assertSame($message, $result);
-        $this->assertEquals($seq, $message->getSeq());
+        $this->entity->setSeq(0);
+        $this->assertSame(0, $this->entity->getSeq());
+        
+        $this->entity->setSeq(-1);
+        $this->assertSame(-1, $this->entity->getSeq());
     }
-    
-    public function testRoomIdGetterSetter(): void
+
+    public function test_roomId_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
-        $roomId = 'room123';
+        $this->assertNull($this->entity->getRoomId());
         
-        $result = $message->setRoomId($roomId);
+        $roomId = 'room_123456';
+        $this->entity->setRoomId($roomId);
+        $this->assertSame($roomId, $this->entity->getRoomId());
         
-        $this->assertSame($message, $result);
-        $this->assertEquals($roomId, $message->getRoomId());
+        // 测试null值（单聊）
+        $this->entity->setRoomId(null);
+        $this->assertNull($this->entity->getRoomId());
+    }
+
+    public function test_msgType_getter_and_setter(): void
+    {
+        $this->assertNull($this->entity->getMsgType());
+        
+        $this->entity->setMsgType('text');
+        $this->assertSame('text', $this->entity->getMsgType());
+        
+        $this->entity->setMsgType('image');
+        $this->assertSame('image', $this->entity->getMsgType());
+        
+        $this->entity->setMsgType('voice');
+        $this->assertSame('voice', $this->entity->getMsgType());
+        
+        $this->entity->setMsgType('video');
+        $this->assertSame('video', $this->entity->getMsgType());
         
         // 测试null值
-        $result = $message->setRoomId(null);
-        $this->assertNull($message->getRoomId());
+        $this->entity->setMsgType(null);
+        $this->assertNull($this->entity->getMsgType());
     }
-    
-    public function testMsgTypeGetterSetter(): void
+
+    public function test_content_getter_and_setter(): void
     {
-        $message = new ArchiveMessage();
-        $msgType = 'text';
+        $this->assertSame([], $this->entity->getContent());
         
-        $result = $message->setMsgType($msgType);
+        $content = [
+            'content' => 'Hello World',
+            'type' => 'text',
+        ];
         
-        $this->assertSame($message, $result);
-        $this->assertEquals($msgType, $message->getMsgType());
+        $this->entity->setContent($content);
+        $this->assertSame($content, $this->entity->getContent());
+        
+        // 测试复杂内容（媒体文件）
+        $mediaContent = [
+            'sdkfileid' => 'abc123def456',
+            'filename' => 'image.png',
+            'fileKey' => 'archive/2023/11/15/abc123def456.png',
+        ];
+        
+        $this->entity->setContent($mediaContent);
+        $this->assertSame($mediaContent, $this->entity->getContent());
+        
+        // 测试空数组
+        $this->entity->setContent([]);
+        $this->assertSame([], $this->entity->getContent());
+    }
+
+    public function test_corp_getter_and_setter(): void
+    {
+        $this->assertNull($this->entity->getCorp());
+        
+        /** @var CorpInterface $corp */
+        $corp = $this->createMock(CorpInterface::class);
+        $this->entity->setCorp($corp);
+        $this->assertSame($corp, $this->entity->getCorp());
         
         // 测试null值
-        $result = $message->setMsgType(null);
-        $this->assertNull($message->getMsgType());
+        $this->entity->setCorp(null);
+        $this->assertNull($this->entity->getCorp());
     }
-    
-    public function testContentGetterSetter(): void
+
+    public function test_fluent_interface(): void
     {
-        $message = new ArchiveMessage();
-        $content = ['text' => 'Hello world', 'mentioned' => ['user1', 'user2']];
+        /** @var CorpInterface $corp */
+        $corp = $this->createMock(CorpInterface::class);
+        $time = new \DateTime();
         
-        $result = $message->setContent($content);
+        $result = $this->entity
+            ->setMsgId('test_msg_id')
+            ->setAction('send')
+            ->setFromUserId('user123')
+            ->setToList(['user1', 'user2'])
+            ->setMsgTime($time)
+            ->setSeq(10)
+            ->setRoomId('room123')
+            ->setMsgType('text')
+            ->setContent(['content' => 'Hello'])
+            ->setCorp($corp)
+            ->setContext(['test' => 'data']);
         
-        $this->assertSame($message, $result);
-        $this->assertEquals($content, $message->getContent());
+        $this->assertSame($this->entity, $result);
+        $this->assertSame('test_msg_id', $this->entity->getMsgId());
+        $this->assertSame('send', $this->entity->getAction());
+        $this->assertSame('user123', $this->entity->getFromUserId());
+        $this->assertSame(['user1', 'user2'], $this->entity->getToList());
+        $this->assertSame($time, $this->entity->getMsgTime());
+        $this->assertSame(10, $this->entity->getSeq());
+        $this->assertSame('room123', $this->entity->getRoomId());
+        $this->assertSame('text', $this->entity->getMsgType());
+        $this->assertSame(['content' => 'Hello'], $this->entity->getContent());
+        $this->assertSame($corp, $this->entity->getCorp());
+        $this->assertSame(['test' => 'data'], $this->entity->getContext());
+    }
+
+    public function test_complete_message_scenario(): void
+    {
+        /** @var CorpInterface $corp */
+        $corp = $this->createMock(CorpInterface::class);
+        $time = Carbon::createFromTimestampMs(1668250655937);
         
-        // 测试空数组值（不能设置为null）
-        $result = $message->setContent([]);
-        $this->assertEquals([], $message->getContent());
+        // 模拟完整的消息数据
+        $this->entity
+            ->setMsgId('16666922367251035000_1668250656103')
+            ->setAction('send')
+            ->setFromUserId('felix_ye')
+            ->setToList(['user1@corp', 'user2@corp'])
+            ->setMsgTime($time)
+            ->setSeq(16)
+            ->setRoomId('room_group_chat')
+            ->setMsgType('image')
+            ->setContent([
+                'sdkfileid' => 'abc123def456ghi789',
+                'filename' => 'screenshot.png',
+                'fileKey' => 'archive/2023/11/15/abc123def456ghi789.png',
+                'size' => 1024000,
+            ])
+            ->setCorp($corp)
+            ->setContext([
+                'msgid' => '16666922367251035000_1668250656103',
+                'action' => 'send',
+                'from' => 'felix_ye',
+                'tolist' => ['user1@corp', 'user2@corp'],
+                'msgtime' => 1668250655937,
+                'msgtype' => 'image',
+                'roomid' => 'room_group_chat',
+                'seq' => 16,
+                'image' => [
+                    'sdkfileid' => 'abc123def456ghi789',
+                    'filename' => 'screenshot.png',
+                ],
+            ]);
+        
+        // 验证所有数据都正确设置
+        $this->assertSame('16666922367251035000_1668250656103', $this->entity->getMsgId());
+        $this->assertSame('send', $this->entity->getAction());
+        $this->assertSame('felix_ye', $this->entity->getFromUserId());
+        $this->assertSame(['user1@corp', 'user2@corp'], $this->entity->getToList());
+        $this->assertEquals($time, $this->entity->getMsgTime());
+        $this->assertSame(16, $this->entity->getSeq());
+        $this->assertSame('room_group_chat', $this->entity->getRoomId());
+        $this->assertSame('image', $this->entity->getMsgType());
+        $this->assertArrayHasKey('fileKey', $this->entity->getContent());
+        $this->assertSame($corp, $this->entity->getCorp());
+        $this->assertArrayHasKey('msgid', $this->entity->getContext());
     }
 } 

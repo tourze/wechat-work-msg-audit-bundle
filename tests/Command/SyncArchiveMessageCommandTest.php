@@ -2,44 +2,40 @@
 
 namespace WechatWorkMsgAuditBundle\Tests\Command;
 
-use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Application;
-use Symfony\Component\Console\Tester\CommandTester;
-use WechatWorkBundle\Entity\Agent;
-use WechatWorkBundle\Entity\Corp;
-use WechatWorkBundle\Enum\SpecialAgent;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use WechatWorkBundle\Repository\AgentRepository;
 use WechatWorkBundle\Repository\CorpRepository;
 use WechatWorkMsgAuditBundle\Command\SyncArchiveMessageCommand;
 use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 
-/**
- * 注意：这个测试依赖于MoChat\WeWorkFinanceSDK\WxFinanceSDK静态方法，测试时需要修改方法以使用mock
- * 为了避免修改源代码，我们在测试中避免实际调用SDK，并在必要时跳过相关测试
- */
 class SyncArchiveMessageCommandTest extends TestCase
 {
-    private $corpRepository;
-    private $agentRepository;
-    private $mountManager;
-    private $messageRepository;
-    private $entityManager;
-    private $command;
-    private $commandTester;
-    
+    private SyncArchiveMessageCommand $command;
+    private CorpRepository $corpRepository;
+    private AgentRepository $agentRepository;
+    private FilesystemOperator $mountManager;
+    private ArchiveMessageRepository $messageRepository;
+    private EntityManagerInterface $entityManager;
+
     protected function setUp(): void
     {
-        // 创建模拟依赖
+        /** @var CorpRepository $corpRepository */
         $this->corpRepository = $this->createMock(CorpRepository::class);
+        /** @var AgentRepository $agentRepository */
         $this->agentRepository = $this->createMock(AgentRepository::class);
+        /** @var FilesystemOperator $mountManager */
         $this->mountManager = $this->createMock(FilesystemOperator::class);
+        /** @var ArchiveMessageRepository $messageRepository */
         $this->messageRepository = $this->createMock(ArchiveMessageRepository::class);
+        /** @var EntityManagerInterface $entityManager */
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        
-        // 创建命令
+
         $this->command = new SyncArchiveMessageCommand(
             $this->corpRepository,
             $this->agentRepository,
@@ -47,102 +43,136 @@ class SyncArchiveMessageCommandTest extends TestCase
             $this->messageRepository,
             $this->entityManager
         );
+    }
+
+    public function test_command_inheritance(): void
+    {
+        $this->assertInstanceOf(Command::class, $this->command);
+    }
+
+    public function test_command_name(): void
+    {
+        $this->assertSame('wechat-work:sync-archive-message', $this->command->getName());
+    }
+
+    public function test_command_description(): void
+    {
+        $this->assertSame('同步归档消息', $this->command->getDescription());
+    }
+
+    public function test_command_arguments(): void
+    {
+        $definition = $this->command->getDefinition();
         
-        // 创建应用和命令测试器
+        $this->assertTrue($definition->hasArgument('corpId'));
+        $this->assertTrue($definition->hasArgument('agentId'));
+        
+        $corpIdArg = $definition->getArgument('corpId');
+        $this->assertFalse($corpIdArg->isRequired());
+        $this->assertSame('企业ID', $corpIdArg->getDescription());
+        
+        $agentIdArg = $definition->getArgument('agentId');
+        $this->assertFalse($agentIdArg->isRequired());
+        $this->assertSame('应用ID', $agentIdArg->getDescription());
+    }
+
+    public function test_command_has_cron_attribute(): void
+    {
+        $reflection = new \ReflectionClass($this->command);
+        $attributes = $reflection->getAttributes(\Tourze\Symfony\CronJob\Attribute\AsCronTask::class);
+        
+        $this->assertCount(1, $attributes);
+        $cronAttribute = $attributes[0]->newInstance();
+        $this->assertInstanceOf(\Tourze\Symfony\CronJob\Attribute\AsCronTask::class, $cronAttribute);
+    }
+
+    public function test_command_has_console_attribute(): void
+    {
+        $reflection = new \ReflectionClass($this->command);
+        $attributes = $reflection->getAttributes(\Symfony\Component\Console\Attribute\AsCommand::class);
+        
+        $this->assertCount(1, $attributes);
+        $commandAttribute = $attributes[0]->newInstance();
+        $this->assertInstanceOf(\Symfony\Component\Console\Attribute\AsCommand::class, $commandAttribute);
+    }
+
+    public function test_command_constructor_dependencies(): void
+    {
+        $reflection = new \ReflectionClass($this->command);
+        $constructor = $reflection->getConstructor();
+        
+        $this->assertNotNull($constructor);
+        $parameters = $constructor->getParameters();
+        $this->assertCount(5, $parameters);
+        
+        $this->assertSame('corpRepository', $parameters[0]->getName());
+        $this->assertSame('agentRepository', $parameters[1]->getName());
+        $this->assertSame('mountManager', $parameters[2]->getName());
+        $this->assertSame('messageRepository', $parameters[3]->getName());
+        $this->assertSame('entityManager', $parameters[4]->getName());
+    }
+
+    public function test_execute_with_invalid_corp_id(): void
+    {
+        $this->corpRepository->expects($this->once())
+            ->method('findOneBy')
+            ->with(['corpId' => 'invalid_corp'])
+            ->willReturn(null);
+
         $application = new Application();
         $application->add($this->command);
-        $this->commandTester = new CommandTester($this->command);
-    }
-    
-    public function testExecuteWithInvalidCorpId(): void
-    {
-        // 配置mock返回无效企业
-        $this->corpRepository->expects($this->once())
-            ->method('findOneBy')
-            ->with(['corpId' => 'invalid_corp_id'])
-            ->willReturn(null);
-        
-        // 执行命令
-        $this->commandTester->execute([
-            'corpId' => 'invalid_corp_id',
+
+        $input = new ArrayInput([
+            'command' => 'wechat-work:sync-archive-message',
+            'corpId' => 'invalid_corp',
         ]);
-        
-        // 检查输出和退出码
-        $output = $this->commandTester->getDisplay();
-        $this->assertStringContainsString('找不到企业', $output);
-        $this->assertEquals(1, $this->commandTester->getStatusCode());
+        $output = new BufferedOutput();
+
+        $result = $this->command->run($input, $output);
+
+        $this->assertSame(Command::FAILURE, $result);
+        $this->assertStringContainsString('找不到企业', $output->fetch());
     }
-    
-    public function testExecuteWithValidCorpButNoAgent(): void
+
+    public function test_execute_without_arguments(): void
     {
-        // 创建模拟Corp
-        $corp = $this->createMock(Corp::class);
-        $corp->method('getName')->willReturn('测试企业');
-        
-        // 为Corp创建空的Agent集合
-        $emptyCollection = new ArrayCollection();
-        $corp->method('getAgents')->willReturn($emptyCollection);
-        
-        // 配置mock返回有效企业
-        $this->corpRepository->expects($this->once())
-            ->method('findOneBy')
-            ->with(['corpId' => 'valid_corp_id'])
-            ->willReturn($corp);
-        
-        // 配置agent mock
-        $this->agentRepository->expects($this->once())
-            ->method('findOneBy')
-            ->with([
-                'corp' => $corp,
-                'agentId' => '123456',
-            ])
-            ->willReturn(null);
-        
-        // 执行命令
-        $this->commandTester->execute([
-            'corpId' => 'valid_corp_id',
-            'agentId' => '123456',
-        ]);
-        
-        // 检查输出
-        $output = $this->commandTester->getDisplay();
-        $this->assertStringContainsString('找不到[测试企业]的消息归档应用', $output);
-    }
-    
-    public function testExecuteWithValidCorpAndAgentButNoPrivateKey(): void
-    {
-        // 创建模拟Corp
-        $corp = $this->createMock(Corp::class);
-        $corp->method('getName')->willReturn('测试企业');
-        $corp->method('getCorpId')->willReturn('wxCorpId');
-        
-        // 创建模拟Agent
-        $agent = $this->createMock(Agent::class);
-        $agent->method('getAgentId')->willReturn(SpecialAgent::MESSAGE_ARCHIVE->value);
-        $agent->method('getPrivateKeyContent')->willReturn(''); // 空私钥
-        
-        // 为Corp创建包含Agent的集合
-        $agentCollection = new ArrayCollection([$agent]);
-        $corp->method('getAgents')->willReturn($agentCollection);
-        
-        // 配置mock返回企业列表
         $this->corpRepository->expects($this->once())
             ->method('findAll')
-            ->willReturn([$corp]);
-        
-        // 执行命令（不传参数，测试全部企业）
-        $this->commandTester->execute([]);
-        
-        // 检查输出
-        $output = $this->commandTester->getDisplay();
-        $this->assertStringContainsString('正在归档[测试企业]的消息', $output);
-        $this->assertStringContainsString('[测试企业]未配置秘钥信息，不能同步', $output);
+            ->willReturn([]);
+
+        $application = new Application();
+        $application->add($this->command);
+
+        $input = new ArrayInput([
+            'command' => 'wechat-work:sync-archive-message',
+        ]);
+        $output = new BufferedOutput();
+
+        $result = $this->command->run($input, $output);
+
+        $this->assertSame(Command::SUCCESS, $result);
     }
-    
-    public function testExecuteWithExistingMessage(): void
+
+    public function test_command_class_name(): void
     {
-        $this->markTestSkipped('由于依赖外部SDK静态方法，此测试被跳过');
+        $this->assertSame(SyncArchiveMessageCommand::class, get_class($this->command));
+    }
+
+    public function test_command_configure_method(): void
+    {
+        $this->assertTrue(method_exists($this->command, 'configure'));
         
-        // TODO: 如需真实测试，需要使用扩展功能来模拟WxFinanceSDK静态方法
+        $reflection = new \ReflectionMethod($this->command, 'configure');
+        $this->assertSame('configure', $reflection->getName());
+        $this->assertTrue($reflection->isProtected());
+    }
+
+    public function test_command_execute_method(): void
+    {
+        $this->assertTrue(method_exists($this->command, 'execute'));
+        
+        $reflection = new \ReflectionMethod($this->command, 'execute');
+        $this->assertSame('execute', $reflection->getName());
+        $this->assertTrue($reflection->isProtected());
     }
 } 

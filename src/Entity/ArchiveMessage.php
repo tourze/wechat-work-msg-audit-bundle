@@ -8,7 +8,7 @@ use Tourze\DoctrineSnowflakeBundle\Service\SnowflakeIdGenerator;
 use Tourze\EasyAdmin\Attribute\Column\ExportColumn;
 use Tourze\EasyAdmin\Attribute\Column\ListColumn;
 use Tourze\EasyAdmin\Attribute\Permission\AsPermission;
-use WechatWorkBundle\Entity\Corp;
+use Tourze\WechatWorkContracts\CorpInterface;
 use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 
 #[AsPermission(title: '归档消息')]
@@ -29,7 +29,7 @@ class ArchiveMessage
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Corp $corp = null;
+    private ?CorpInterface $corp = null;
 
     #[ORM\Column(length: 120, unique: true, options: ['comment' => '消息的唯一标识'])]
     private ?string $msgId = null;
@@ -47,7 +47,7 @@ class ArchiveMessage
      * @var array 可能是多个，同一个企业内容为userid，非相同企业为external_userid。数组，内容为string类型
      */
     #[ORM\Column(nullable: true, options: ['comment' => '消息接收方列表'])]
-    private array $toList = [];
+    private ?array $toList = [];
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['comment' => '消息发送时间'])]
     private ?\DateTimeInterface $msgTime = null;
@@ -65,7 +65,7 @@ class ArchiveMessage
     private ?string $msgType = null;
 
     #[ORM\Column(nullable: true, options: ['comment' => '消息内容'])]
-    private array $content = [];
+    private ?array $content = [];
 
     public function getId(): ?string
     {
@@ -122,12 +122,12 @@ class ArchiveMessage
 
     public function getToList(): array
     {
-        return $this->toList;
+        return $this->toList ?? [];
     }
 
     public function setToList(?array $toList): self
     {
-        $this->toList = $toList;
+        $this->toList = $toList ?? [];
 
         return $this;
     }
@@ -182,22 +182,22 @@ class ArchiveMessage
 
     public function getContent(): array
     {
-        return $this->content;
+        return $this->content ?? [];
     }
 
     public function setContent(?array $content): self
     {
-        $this->content = $content;
+        $this->content = $content ?? [];
 
         return $this;
     }
 
-    public function getCorp(): ?Corp
+    public function getCorp(): ?CorpInterface
     {
         return $this->corp;
     }
 
-    public function setCorp(?Corp $corp): self
+    public function setCorp(?CorpInterface $corp): self
     {
         $this->corp = $corp;
 
