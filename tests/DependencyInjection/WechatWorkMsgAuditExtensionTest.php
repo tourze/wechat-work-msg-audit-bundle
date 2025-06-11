@@ -83,7 +83,7 @@ class WechatWorkMsgAuditExtensionTest extends TestCase
         try {
             $this->container->compile();
             $this->assertTrue(true, 'Container compilation should succeed');
-        } catch  (\Throwable $e) {
+        } catch (\Throwable $e) {
             $this->fail('Container compilation failed: ' . $e->getMessage());
         }
     }
