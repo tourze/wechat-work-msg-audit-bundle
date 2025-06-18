@@ -31,8 +31,6 @@ class MessageActionTest extends TestCase
     public function test_toSelectItem_returns_proper_format(): void
     {
         $item = MessageAction::SEND->toSelectItem();
-        
-        $this->assertIsArray($item);
         $this->assertArrayHasKey('label', $item);
         $this->assertArrayHasKey('text', $item);
         $this->assertArrayHasKey('value', $item);
@@ -46,8 +44,6 @@ class MessageActionTest extends TestCase
     public function test_toArray_returns_proper_format(): void
     {
         $array = MessageAction::SEND->toArray();
-        
-        $this->assertIsArray($array);
         $this->assertArrayHasKey('value', $array);
         $this->assertArrayHasKey('label', $array);
         $this->assertSame('send', $array['value']);
@@ -57,12 +53,9 @@ class MessageActionTest extends TestCase
     public function test_genOptions_returns_all_enum_options(): void
     {
         $options = MessageAction::genOptions();
-        
-        $this->assertIsArray($options);
         $this->assertCount(3, $options);
         
         foreach ($options as $option) {
-            $this->assertIsArray($option);
             $this->assertArrayHasKey('value', $option);
             $this->assertArrayHasKey('label', $option);
             $this->assertArrayHasKey('text', $option);

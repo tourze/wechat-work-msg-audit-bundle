@@ -19,8 +19,6 @@ class GetPermitUserListRequestTest extends TestCase
         $request = new GetPermitUserListRequest();
         
         $options = $request->getRequestOptions();
-        
-        $this->assertIsArray($options);
         $this->assertArrayHasKey('json', $options);
         $this->assertSame([], $options['json']);
     }
@@ -31,8 +29,6 @@ class GetPermitUserListRequestTest extends TestCase
         $request->setType(1);
         
         $options = $request->getRequestOptions();
-        
-        $this->assertIsArray($options);
         $this->assertArrayHasKey('json', $options);
         $this->assertArrayHasKey('type', $options['json']);
         $this->assertSame(1, $options['json']['type']);
@@ -83,8 +79,6 @@ class GetPermitUserListRequestTest extends TestCase
         $request->setType(0);
         
         $options = $request->getRequestOptions();
-        
-        $this->assertIsArray($options);
         $this->assertArrayHasKey('json', $options);
         $this->assertArrayHasKey('type', $options['json']);
         $this->assertSame(0, $options['json']['type']);

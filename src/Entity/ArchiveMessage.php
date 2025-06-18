@@ -5,19 +5,13 @@ namespace WechatWorkMsgAuditBundle\Entity;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Tourze\DoctrineSnowflakeBundle\Service\SnowflakeIdGenerator;
-use Tourze\EasyAdmin\Attribute\Column\ExportColumn;
-use Tourze\EasyAdmin\Attribute\Column\ListColumn;
-use Tourze\EasyAdmin\Attribute\Permission\AsPermission;
 use Tourze\WechatWorkContracts\CorpInterface;
 use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 
-#[AsPermission(title: '归档消息')]
 #[ORM\Entity(repositoryClass: ArchiveMessageRepository::class)]
 #[ORM\Table(name: 'wechat_work_archive_message', options: ['comment' => '归档消息'])]
 class ArchiveMessage
 {
-    #[ExportColumn]
-    #[ListColumn(order: -1, sorter: true)]
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
     #[ORM\CustomIdGenerator(SnowflakeIdGenerator::class)]

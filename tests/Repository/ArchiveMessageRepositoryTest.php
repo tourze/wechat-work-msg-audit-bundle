@@ -9,27 +9,21 @@ use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 class ArchiveMessageRepositoryTest extends TestCase
 {
     public function test_repository_inheritance(): void
-    {
-        /** @var ManagerRegistry $registry */
-        $registry = $this->createMock(ManagerRegistry::class);
+    {        $registry = $this->createMock(ManagerRegistry::class);
         $repository = new ArchiveMessageRepository($registry);
         
         $this->assertInstanceOf(\Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository::class, $repository);
     }
 
     public function test_repository_class_name(): void
-    {
-        /** @var ManagerRegistry $registry */
-        $registry = $this->createMock(ManagerRegistry::class);
+    {        $registry = $this->createMock(ManagerRegistry::class);
         $repository = new ArchiveMessageRepository($registry);
         
         $this->assertSame(ArchiveMessageRepository::class, get_class($repository));
     }
 
     public function test_repository_methods_exist(): void
-    {
-        /** @var ManagerRegistry $registry */
-        $registry = $this->createMock(ManagerRegistry::class);
+    {        $registry = $this->createMock(ManagerRegistry::class);
         $repository = new ArchiveMessageRepository($registry);
         
         // 测试继承的方法是否存在
@@ -59,8 +53,6 @@ class ArchiveMessageRepositoryTest extends TestCase
         // 测试Repository类的PHPDoc注释是否正确
         $reflection = new \ReflectionClass(ArchiveMessageRepository::class);
         $docComment = $reflection->getDocComment();
-        
-        $this->assertIsString($docComment);
         $this->assertStringContainsString('@method ArchiveMessage|null find($id', $docComment);
         $this->assertStringContainsString('@method ArchiveMessage|null findOneBy(array $criteria', $docComment);
         $this->assertStringContainsString('@method ArchiveMessage[]    findAll()', $docComment);

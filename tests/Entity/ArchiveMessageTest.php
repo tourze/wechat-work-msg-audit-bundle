@@ -187,10 +187,7 @@ class ArchiveMessageTest extends TestCase
 
     public function test_corp_getter_and_setter(): void
     {
-        $this->assertNull($this->entity->getCorp());
-        
-        /** @var CorpInterface $corp */
-        $corp = $this->createMock(CorpInterface::class);
+        $this->assertNull($this->entity->getCorp());        $corp = $this->createMock(CorpInterface::class);
         $this->entity->setCorp($corp);
         $this->assertSame($corp, $this->entity->getCorp());
         
@@ -200,9 +197,7 @@ class ArchiveMessageTest extends TestCase
     }
 
     public function test_fluent_interface(): void
-    {
-        /** @var CorpInterface $corp */
-        $corp = $this->createMock(CorpInterface::class);
+    {        $corp = $this->createMock(CorpInterface::class);
         $time = new \DateTime();
         
         $result = $this->entity
@@ -233,9 +228,7 @@ class ArchiveMessageTest extends TestCase
     }
 
     public function test_complete_message_scenario(): void
-    {
-        /** @var CorpInterface $corp */
-        $corp = $this->createMock(CorpInterface::class);
+    {        $corp = $this->createMock(CorpInterface::class);
         $time = Carbon::createFromTimestampMs(1668250655937);
         
         // 模拟完整的消息数据
