@@ -2,7 +2,7 @@
 
 namespace WechatWorkMsgAuditBundle\Command;
 
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
 use MoChat\WeWorkFinanceSDK\Provider\FFIProvider;
@@ -24,10 +24,10 @@ use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
  * @see https://developer.work.weixin.qq.com/document/path/91774
  */
 #[AsCronTask('* * * * *')]
-#[AsCommand(name: 'wechat-work:sync-archive-message', description: '同步归档消息')]
+#[AsCommand(name: self::NAME, description: '同步归档消息')]
 class SyncArchiveMessageCommand extends Command
 {
-    public const NAME = 'sync-archive-message';
+    public const NAME = 'wechat-work:sync-archive-message';
 
     public function __construct(
         private readonly CorpRepository $corpRepository,
@@ -47,9 +47,10 @@ class SyncArchiveMessageCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        if ($input->getArgument('corpId')) {
-            $corp = $this->corpRepository->findOneBy(['corpId' => $input->getArgument('corpId')]);
-            if (!$corp) {
+        $corpIdArg = $input->getArgument('corpId');
+        if (!empty($corpIdArg)) {
+            $corp = $this->corpRepository->findOneBy(['corpId' => $corpIdArg]);
+            if (null === $corp) {
                 $output->writeln('找不到企业');
 
                 return Command::FAILURE;
@@ -62,10 +63,11 @@ class SyncArchiveMessageCommand extends Command
 
         foreach ($corps as $corp) {
             $agent = null;
-            if ($input->getArgument('agentId')) {
+            $agentIdArg = $input->getArgument('agentId');
+        if (!empty($agentIdArg)) {
                 $agent = $this->agentRepository->findOneBy([
                     'corp' => $corp,
-                    'agentId' => $input->getArgument('agentId'),
+                    'agentId' => $agentIdArg,
                 ]);
             } else {
                 foreach ($corp->getAgents() as $item) {
@@ -76,7 +78,7 @@ class SyncArchiveMessageCommand extends Command
                 }
             }
 
-            if (!$agent) {
+            if (null === $agent) {
                 $output->writeln("找不到[{$corp->getName()}]的消息归档应用");
                 continue;
             }
@@ -110,7 +112,7 @@ class SyncArchiveMessageCommand extends Command
             $sdk = WxFinanceSDK::init($corpConfig, $srcConfig);
 
             $lastMessage = $this->messageRepository->findOneBy(['corp' => $corp], ['id' => 'DESC']);
-            $seq = $lastMessage ? $lastMessage->getSeq() - 1 : 0;
+            $seq = $lastMessage !== null ? $lastMessage->getSeq() - 1 : 0;
 
             // 获取聊天记录
             $chatData = $sdk->getDecryptChatData($seq, 200);
@@ -128,7 +130,7 @@ class SyncArchiveMessageCommand extends Command
                     'corp' => $corp,
                     'msgId' => $datum['msgid'],
                 ]);
-                if ($message) {
+                if (null !== $message) {
                     // 处理过了，我们跳过
                     continue;
                 }
@@ -148,12 +150,12 @@ class SyncArchiveMessageCommand extends Command
                 // ]
                 if ('switch' === $message->getAction()) {
                     $message->setFromUserId($datum['user']);
-                    $message->setMsgTime(Carbon::createFromTimestampMs($datum['time']));
+                    $message->setMsgTime(CarbonImmutable::createFromTimestampMs($datum['time'])->toDateTimeImmutable());
                 } else {
                     $message->setFromUserId($datum['from']);
                     $message->setToList($datum['tolist']);
                     $message->setRoomId($datum['roomid']);
-                    $message->setMsgTime(Carbon::createFromTimestampMs($datum['msgtime']));
+                    $message->setMsgTime(CarbonImmutable::createFromTimestampMs($datum['msgtime'])->toDateTimeImmutable());
                 }
 
                 $message->setSeq($datum['seq']);
@@ -163,11 +165,13 @@ class SyncArchiveMessageCommand extends Command
                     $message->setContent($datum[$message->getMsgType()]);
 
                     // 如果content里面有 sdkfileid ，那就说明有媒体？
-                    if ($message->getContent() && isset($message->getContent()['sdkfileid'])) {
+                    $content = $message->getContent();
+                    if (isset($content['sdkfileid'])) {
                         $ext = $map[$message->getMsgType()] ?? 'raw';
                         $file = $sdk->getMediaData($message->getContent()['sdkfileid'], $ext);
-                        $key = $this->mountManager->saveContent($file, $ext, 'archive');
-                        $content = $message->getContent();
+                        $destinationPath = 'archive/' . uniqid() . '.' . $ext;
+                        $this->mountManager->write($destinationPath, $file);
+                        $key = $destinationPath;
                         $content['fileKey'] = $key;
                         $message->setContent($content);
                     }

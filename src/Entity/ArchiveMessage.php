@@ -41,12 +41,12 @@ class ArchiveMessage implements \Stringable
      * @var array 可能是多个，同一个企业内容为userid，非相同企业为external_userid。数组，内容为string类型
      */
     #[ORM\Column(nullable: true, options: ['comment' => '消息接收方列表'])]
-    private ?array $toList = [];
+    private array $toList = [];
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['comment' => '消息发送时间'])]
-    private ?\DateTimeInterface $msgTime = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, options: ['comment' => '消息发送时间'])]
+    private ?\DateTimeImmutable $msgTime = null;
 
-    #[ORM\Column]
+    #[ORM\Column(options: ['comment' => '消息序列号'])]
     private ?int $seq = null;
 
     /**
@@ -59,7 +59,7 @@ class ArchiveMessage implements \Stringable
     private ?string $msgType = null;
 
     #[ORM\Column(nullable: true, options: ['comment' => '消息内容'])]
-    private ?array $content = [];
+    private array $content = [];
 
     public function getId(): ?string
     {
@@ -126,12 +126,12 @@ class ArchiveMessage implements \Stringable
         return $this;
     }
 
-    public function getMsgTime(): ?\DateTimeInterface
+    public function getMsgTime(): ?\DateTimeImmutable
     {
         return $this->msgTime;
     }
 
-    public function setMsgTime(\DateTimeInterface $msgTime): self
+    public function setMsgTime(\DateTimeImmutable $msgTime): self
     {
         $this->msgTime = $msgTime;
 

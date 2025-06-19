@@ -35,7 +35,6 @@ class WechatWorkMsgAuditBundleTest extends TestCase
         $bundle = new WechatWorkMsgAuditBundle();
         
         $path = $bundle->getPath();
-        $this->assertIsString($path);
         $this->assertStringContainsString('wechat-work-msg-audit-bundle', $path);
     }
 } 

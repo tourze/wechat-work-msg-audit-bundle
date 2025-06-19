@@ -26,11 +26,8 @@ class ArchiveMessageRepositoryTest extends TestCase
     {        $registry = $this->createMock(ManagerRegistry::class);
         $repository = new ArchiveMessageRepository($registry);
         
-        // 测试继承的方法是否存在
-        $this->assertTrue(method_exists($repository, 'find'));
-        $this->assertTrue(method_exists($repository, 'findOneBy'));
-        $this->assertTrue(method_exists($repository, 'findAll'));
-        $this->assertTrue(method_exists($repository, 'findBy'));
+        // 这些方法继承自父类，不需要检查
+        $this->assertInstanceOf(ArchiveMessageRepository::class, $repository);
     }
 
     public function test_constructor_parameter_types(): void
@@ -45,7 +42,7 @@ class ArchiveMessageRepositoryTest extends TestCase
         
         $registryParam = $parameters[0];
         $this->assertSame('registry', $registryParam->getName());
-        $this->assertSame(ManagerRegistry::class, $registryParam->getType()->getName());
+        $this->assertSame(ManagerRegistry::class, (string) $registryParam->getType());
     }
 
     public function test_repository_phpdoc_annotations(): void

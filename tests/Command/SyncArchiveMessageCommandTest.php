@@ -25,15 +25,10 @@ class SyncArchiveMessageCommandTest extends TestCase
 
     protected function setUp(): void
     {
-        /** @var CorpRepository $corpRepository */
         $this->corpRepository = $this->createMock(CorpRepository::class);
-        /** @var AgentRepository $agentRepository */
         $this->agentRepository = $this->createMock(AgentRepository::class);
-        /** @var FilesystemOperator $mountManager */
         $this->mountManager = $this->createMock(FilesystemOperator::class);
-        /** @var ArchiveMessageRepository $messageRepository */
         $this->messageRepository = $this->createMock(ArchiveMessageRepository::class);
-        /** @var EntityManagerInterface $entityManager */
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
 
         $this->command = new SyncArchiveMessageCommand(
@@ -160,7 +155,7 @@ class SyncArchiveMessageCommandTest extends TestCase
 
     public function test_command_configure_method(): void
     {
-        $this->assertTrue(method_exists($this->command, 'configure'));
+        $this->assertNotNull($this->command);
         
         $reflection = new \ReflectionMethod($this->command, 'configure');
         $this->assertSame('configure', $reflection->getName());
@@ -169,7 +164,7 @@ class SyncArchiveMessageCommandTest extends TestCase
 
     public function test_command_execute_method(): void
     {
-        $this->assertTrue(method_exists($this->command, 'execute'));
+        $this->assertNotNull($this->command);
         
         $reflection = new \ReflectionMethod($this->command, 'execute');
         $this->assertSame('execute', $reflection->getName());

@@ -2,7 +2,7 @@
 
 namespace WechatWorkMsgAuditBundle\Tests\Entity;
 
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use PHPUnit\Framework\TestCase;
 use Tourze\WechatWorkContracts\CorpInterface;
 use WechatWorkMsgAuditBundle\Entity\ArchiveMessage;
@@ -100,12 +100,12 @@ class ArchiveMessageTest extends TestCase
     {
         $this->assertNull($this->entity->getMsgTime());
         
-        $time = new \DateTime('2023-11-15 10:30:00');
+        $time = new \DateTimeImmutable('2023-11-15 10:30:00');
         $this->entity->setMsgTime($time);
         $this->assertSame($time, $this->entity->getMsgTime());
         
         // 测试Carbon实例
-        $carbonTime = Carbon::now();
+        $carbonTime = CarbonImmutable::now()->toDateTimeImmutable();
         $this->entity->setMsgTime($carbonTime);
         $this->assertSame($carbonTime, $this->entity->getMsgTime());
     }
@@ -198,7 +198,7 @@ class ArchiveMessageTest extends TestCase
 
     public function test_fluent_interface(): void
     {        $corp = $this->createMock(CorpInterface::class);
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
         
         $result = $this->entity
             ->setMsgId('test_msg_id')
@@ -229,7 +229,7 @@ class ArchiveMessageTest extends TestCase
 
     public function test_complete_message_scenario(): void
     {        $corp = $this->createMock(CorpInterface::class);
-        $time = Carbon::createFromTimestampMs(1668250655937);
+        $time = CarbonImmutable::createFromTimestampMs(1668250655937)->toDateTimeImmutable();
         
         // 模拟完整的消息数据
         $this->entity
