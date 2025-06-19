@@ -27,6 +27,8 @@ use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 #[AsCommand(name: 'wechat-work:sync-archive-message', description: '同步归档消息')]
 class SyncArchiveMessageCommand extends Command
 {
+    public const NAME = 'sync-archive-message';
+
     public function __construct(
         private readonly CorpRepository $corpRepository,
         private readonly AgentRepository $agentRepository,

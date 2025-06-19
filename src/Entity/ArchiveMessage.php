@@ -10,7 +10,7 @@ use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 
 #[ORM\Entity(repositoryClass: ArchiveMessageRepository::class)]
 #[ORM\Table(name: 'wechat_work_archive_message', options: ['comment' => '归档消息'])]
-class ArchiveMessage
+class ArchiveMessage implements \Stringable
 {
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -196,5 +196,10 @@ class ArchiveMessage
         $this->corp = $corp;
 
         return $this;
+    }
+
+    public function __toString(): string
+    {
+        return (string) $this->getId();
     }
 }
