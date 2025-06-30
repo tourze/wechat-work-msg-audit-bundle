@@ -23,7 +23,7 @@ use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 /**
  * @see https://developer.work.weixin.qq.com/document/path/91774
  */
-#[AsCronTask('* * * * *')]
+#[AsCronTask(expression: '* * * * *')]
 #[AsCommand(name: self::NAME, description: '同步归档消息')]
 class SyncArchiveMessageCommand extends Command
 {

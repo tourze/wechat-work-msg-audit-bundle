@@ -4,7 +4,7 @@ namespace WechatWorkMsgAuditBundle\Entity;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Tourze\DoctrineSnowflakeBundle\Service\SnowflakeIdGenerator;
+use Tourze\DoctrineSnowflakeBundle\Traits\SnowflakeKeyAware;
 use Tourze\WechatWorkContracts\CorpInterface;
 use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 
@@ -12,11 +12,7 @@ use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 #[ORM\Table(name: 'wechat_work_archive_message', options: ['comment' => '归档消息'])]
 class ArchiveMessage implements \Stringable
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue(strategy: 'CUSTOM')]
-    #[ORM\CustomIdGenerator(SnowflakeIdGenerator::class)]
-    #[ORM\Column(type: Types::BIGINT, nullable: false, options: ['comment' => 'ID'])]
-    private ?string $id = null;
+    use SnowflakeKeyAware;
 
     #[ORM\Column(type: Types::JSON, nullable: true, options: ['comment' => '上下文'])]
     private ?array $context = [];
@@ -61,10 +57,6 @@ class ArchiveMessage implements \Stringable
     #[ORM\Column(nullable: true, options: ['comment' => '消息内容'])]
     private array $content = [];
 
-    public function getId(): ?string
-    {
-        return $this->id;
-    }
 
     public function getContext(): ?array
     {
