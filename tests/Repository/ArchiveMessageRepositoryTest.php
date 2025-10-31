@@ -2,57 +2,96 @@
 
 namespace WechatWorkMsgAuditBundle\Tests\Repository;
 
-use Doctrine\Persistence\ManagerRegistry;
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractRepositoryTestCase;
+use WechatWorkBundle\Entity\Corp;
+use WechatWorkMsgAuditBundle\Entity\ArchiveMessage;
 use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 
-class ArchiveMessageRepositoryTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(ArchiveMessageRepository::class)]
+#[RunTestsInSeparateProcesses]
+final class ArchiveMessageRepositoryTest extends AbstractRepositoryTestCase
 {
-    public function test_repository_inheritance(): void
-    {        $registry = $this->createMock(ManagerRegistry::class);
-        $repository = new ArchiveMessageRepository($registry);
-        
-        $this->assertInstanceOf(\Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository::class, $repository);
+    protected function getEntityClass(): string
+    {
+        return ArchiveMessage::class;
     }
 
-    public function test_repository_class_name(): void
-    {        $registry = $this->createMock(ManagerRegistry::class);
-        $repository = new ArchiveMessageRepository($registry);
-        
-        $this->assertSame(ArchiveMessageRepository::class, get_class($repository));
+    protected function getRepository(): ArchiveMessageRepository
+    {
+        return self::getService(ArchiveMessageRepository::class);
     }
 
-    public function test_repository_methods_exist(): void
-    {        $registry = $this->createMock(ManagerRegistry::class);
-        $repository = new ArchiveMessageRepository($registry);
-        
-        // 这些方法继承自父类，不需要检查
+    protected function createNewEntity(): ArchiveMessage
+    {
+        $corp = new Corp();
+        $corp->setCorpId('test-corp-' . uniqid());
+        $corp->setName('Test Corp ' . uniqid());
+        $corp->setCorpSecret('test-secret-' . uniqid());
+
+        // 保存 Corp 实体以确保它有 ID
+        $entityManager = self::getEntityManager();
+        $entityManager->persist($corp);
+        $entityManager->flush();
+
+        $entity = new ArchiveMessage();
+        $entity->setCorp($corp);
+        $entity->setMsgId('test-msg-' . uniqid());
+        $entity->setAction('send');
+        $entity->setFromUserId('test-user');
+        $entity->setToList(['target-user']);
+        $entity->setMsgTime(new \DateTimeImmutable());
+        $entity->setSeq(1);
+        $entity->setMsgType('text');
+
+        return $entity;
+    }
+
+    protected function onSetUp(): void
+    {
+        // Repository 测试不需要特殊的设置
+    }
+
+    public function testRepositoryBehavior(): void
+    {
+        $repository = $this->getRepository();
+
+        // 测试Repository的基本行为而非反射
         $this->assertInstanceOf(ArchiveMessageRepository::class, $repository);
+
+        // 测试可以执行基本查询
+        $allEntities = $repository->findAll();
+        $this->assertIsArray($allEntities);
+
+        // 测试可以使用条件查询
+        $oneEntity = $repository->findOneBy([]);
+        $this->assertTrue(null === $oneEntity || $oneEntity instanceof ArchiveMessage);
     }
 
-    public function test_constructor_parameter_types(): void
+    public function testRepositoryPersistenceOperations(): void
     {
-        // 测试构造函数参数类型
-        $reflection = new \ReflectionClass(ArchiveMessageRepository::class);
-        $constructor = $reflection->getConstructor();
-        
-        $this->assertNotNull($constructor);
-        $parameters = $constructor->getParameters();
-        $this->assertCount(1, $parameters);
-        
-        $registryParam = $parameters[0];
-        $this->assertSame('registry', $registryParam->getName());
-        $this->assertSame(ManagerRegistry::class, (string) $registryParam->getType());
-    }
+        $repository = $this->getRepository();
+        $entity = $this->createNewEntity();
 
-    public function test_repository_phpdoc_annotations(): void
-    {
-        // 测试Repository类的PHPDoc注释是否正确
-        $reflection = new \ReflectionClass(ArchiveMessageRepository::class);
-        $docComment = $reflection->getDocComment();
-        $this->assertStringContainsString('@method ArchiveMessage|null find($id', $docComment);
-        $this->assertStringContainsString('@method ArchiveMessage|null findOneBy(array $criteria', $docComment);
-        $this->assertStringContainsString('@method ArchiveMessage[]    findAll()', $docComment);
-        $this->assertStringContainsString('@method ArchiveMessage[]    findBy(array $criteria', $docComment);
+        // 测试保存操作
+        $repository->save($entity);
+        $this->assertNotNull($entity->getId());
+
+        // 测试查找已保存的实体
+        $foundEntity = $repository->find($entity->getId());
+        $this->assertInstanceOf(ArchiveMessage::class, $foundEntity);
+        $this->assertSame($entity->getMsgId(), $foundEntity->getMsgId());
+
+        // 保存 ID 用于删除后的查询
+        $entityId = $entity->getId();
+
+        // 测试删除操作
+        $repository->remove($entity);
+        $deletedEntity = $repository->find($entityId);
+        $this->assertNull($deletedEntity);
     }
-} 
+}

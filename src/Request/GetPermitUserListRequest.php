@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace WechatWorkMsgAuditBundle\Request;
 
 use HttpClientBundle\Request\ApiRequest;
@@ -26,6 +28,9 @@ class GetPermitUserListRequest extends ApiRequest
         return '/cgi-bin/msgaudit/get_permit_user_list';
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getRequestOptions(): ?array
     {
         $json = [];

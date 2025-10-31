@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace WechatWorkMsgAuditBundle\Command;
 
 use Carbon\CarbonImmutable;
@@ -12,8 +14,11 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use Symfony\Component\VarExporter\VarExporter;
 use Tourze\Symfony\CronJob\Attribute\AsCronTask;
+use WechatWorkBundle\Entity\Agent;
+use WechatWorkBundle\Entity\Corp;
 use WechatWorkBundle\Enum\SpecialAgent;
 use WechatWorkBundle\Repository\AgentRepository;
 use WechatWorkBundle\Repository\CorpRepository;
@@ -23,6 +28,7 @@ use WechatWorkMsgAuditBundle\Repository\ArchiveMessageRepository;
 /**
  * @see https://developer.work.weixin.qq.com/document/path/91774
  */
+#[Autoconfigure(public: true)]
 #[AsCronTask(expression: '* * * * *')]
 #[AsCommand(name: self::NAME, description: '同步归档消息')]
 class SyncArchiveMessageCommand extends Command
@@ -47,141 +53,283 @@ class SyncArchiveMessageCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $corps = $this->getCorps($input, $output);
+        if (null === $corps) {
+            return Command::FAILURE;
+        }
+
+        foreach ($corps as $corp) {
+            $this->processCorp($corp, $input, $output);
+        }
+
+        return Command::SUCCESS;
+    }
+
+    /**
+     * @return Corp[]|null
+     */
+    private function getCorps(InputInterface $input, OutputInterface $output): ?array
+    {
         $corpIdArg = $input->getArgument('corpId');
-        if (!empty($corpIdArg)) {
+        if (null !== $corpIdArg && '' !== $corpIdArg) {
             $corp = $this->corpRepository->findOneBy(['corpId' => $corpIdArg]);
             if (null === $corp) {
                 $output->writeln('找不到企业');
 
-                return Command::FAILURE;
+                return null;
             }
 
-            $corps = [$corp];
+            return [$corp];
+        }
+
+        return $this->corpRepository->findAll();
+    }
+
+    private function processCorp(Corp $corp, InputInterface $input, OutputInterface $output): void
+    {
+        $agent = $this->getAgent($corp, $input);
+        if (null === $agent) {
+            $output->writeln("找不到[{$corp->getName()}]的消息归档应用");
+
+            return;
+        }
+
+        $output->writeln("正在归档[{$corp->getName()}]的消息");
+        if (null === $agent->getPrivateKeyContent() || '' === $agent->getPrivateKeyContent()) {
+            $output->writeln("[{$corp->getName()}]未配置秘钥信息，不能同步");
+
+            return;
+        }
+
+        $sdk = $this->createSdk($corp, $agent);
+        $this->syncMessages($corp, $sdk, $output);
+    }
+
+    private function getAgent(Corp $corp, InputInterface $input): ?Agent
+    {
+        $agentIdArg = $input->getArgument('agentId');
+        if (null !== $agentIdArg && '' !== $agentIdArg) {
+            return $this->agentRepository->findOneBy([
+                'corp' => $corp,
+                'agentId' => $agentIdArg,
+            ]);
+        }
+
+        foreach ($corp->getAgents() as $item) {
+            if ($item->getAgentId() === SpecialAgent::MESSAGE_ARCHIVE->value) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    private function createSdk(Corp $corp, Agent $agent): WxFinanceSDK
+    {
+        $corpConfig = [
+            'corpid' => $corp->getCorpId(),
+            'secret' => $agent->getSecret(),
+            'private_keys' => [
+                $agent->getPrivateKeyVersion() => trim((string) $agent->getPrivateKeyContent()),
+            ],
+        ];
+
+        $srcConfig = [
+            'default' => 'php-ffi',
+            'providers' => [
+                'php-ffi' => [
+                    'driver' => FFIProvider::class,
+                ],
+            ],
+        ];
+
+        return WxFinanceSDK::init($corpConfig, $srcConfig);
+    }
+
+    private function syncMessages(Corp $corp, WxFinanceSDK $sdk, OutputInterface $output): void
+    {
+        /** @var ArchiveMessage|null $lastMessage */
+        $lastMessage = $this->messageRepository->findOneBy(['corp' => $corp], ['id' => 'DESC']);
+        $seq = null !== $lastMessage ? ((int) $lastMessage->getSeq()) - 1 : 0;
+
+        $chatData = $sdk->getDecryptChatData($seq, 200);
+        $output->writeln(VarExporter::export($chatData));
+
+        $extensionMap = $this->getMediaExtensionMap();
+
+        foreach ($chatData as $datum) {
+            $this->processMessage($corp, $datum, $sdk, $extensionMap);
+        }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getMediaExtensionMap(): array
+    {
+        return [
+            'image' => 'png',
+            'voice' => 'amr',
+            'video' => 'mp4',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $datum
+     * @param array<string, string> $extensionMap
+     */
+    private function processMessage(Corp $corp, array $datum, WxFinanceSDK $sdk, array $extensionMap): void
+    {
+        $msgId = $this->ensureString($datum['msgid'] ?? '');
+        if ($this->messageExists($corp, $msgId)) {
+            return;
+        }
+
+        $message = $this->createMessage($corp, $datum);
+        $this->handleMediaContent($message, $sdk, $extensionMap);
+
+        $this->entityManager->persist($message);
+        $this->entityManager->flush();
+    }
+
+    private function messageExists(Corp $corp, string $msgId): bool
+    {
+        return null !== $this->messageRepository->findOneBy([
+            'corp' => $corp,
+            'msgId' => $msgId,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $datum
+     */
+    private function createMessage(Corp $corp, array $datum): ArchiveMessage
+    {
+        $message = new ArchiveMessage();
+        $message->setContext($datum);
+        $message->setCorp($corp);
+
+        $message->setMsgId($this->ensureString($datum['msgid'] ?? ''));
+        $message->setAction($this->ensureString($datum['action'] ?? ''));
+        $message->setSeq($this->ensureInt($datum['seq'] ?? 0));
+
+        $action = $message->getAction();
+        if ('switch' === $action) {
+            $this->setSwitchMessage($message, $datum);
         } else {
-            $corps = $this->corpRepository->findAll();
+            $this->setChatMessage($message, $datum);
         }
 
-        foreach ($corps as $corp) {
-            $agent = null;
-            $agentIdArg = $input->getArgument('agentId');
-        if (!empty($agentIdArg)) {
-                $agent = $this->agentRepository->findOneBy([
-                    'corp' => $corp,
-                    'agentId' => $agentIdArg,
-                ]);
-            } else {
-                foreach ($corp->getAgents() as $item) {
-                    if ($item->getAgentId() === SpecialAgent::MESSAGE_ARCHIVE->value) {
-                        $agent = $item;
-                        break;
-                    }
-                }
-            }
+        $this->setMessageContent($message, $datum);
 
-            if (null === $agent) {
-                $output->writeln("找不到[{$corp->getName()}]的消息归档应用");
-                continue;
-            }
+        return $message;
+    }
 
-            $output->writeln("正在归档[{$corp->getName()}]的消息");
-            if (empty($agent->getPrivateKeyContent())) {
-                $output->writeln("[{$corp->getName()}]未配置秘钥信息，不能同步");
-                continue;
-            }
-
-            // # 企业配置
-            $corpConfig = [
-                'corpid' => $corp->getCorpId(),
-                'secret' => $agent->getSecret(),
-                'private_keys' => [
-                    $agent->getPrivateKeyVersion() => trim($agent->getPrivateKeyContent()),
-                ],
-            ];
-
-            // 包配置
-            $srcConfig = [
-                'default' => 'php-ffi',
-                'providers' => [
-                    'php-ffi' => [
-                        'driver' => FFIProvider::class,
-                    ],
-                ],
-            ];
-
-            // 1、实例化
-            $sdk = WxFinanceSDK::init($corpConfig, $srcConfig);
-
-            $lastMessage = $this->messageRepository->findOneBy(['corp' => $corp], ['id' => 'DESC']);
-            $seq = $lastMessage !== null ? $lastMessage->getSeq() - 1 : 0;
-
-            // 获取聊天记录
-            $chatData = $sdk->getDecryptChatData($seq, 200);
-            $output->writeln(VarExporter::export($chatData));
-
-            // see https://developers.weixin.qq.com/community/develop/doc/0002ce370ec37812b02a12d4556000
-            $map = [
-                'image' => 'png',
-                'voice' => 'amr',
-                'video' => 'mp4',
-            ];
-
-            foreach ($chatData as $datum) {
-                $message = $this->messageRepository->findOneBy([
-                    'corp' => $corp,
-                    'msgId' => $datum['msgid'],
-                ]);
-                if (null !== $message) {
-                    // 处理过了，我们跳过
-                    continue;
-                }
-
-                $message = new ArchiveMessage();
-                $message->setContext($datum);
-                $message->setCorp($corp);
-                $message->setMsgId($datum['msgid']);
-                $message->setAction($datum['action']);
-
-                // switch是很特殊的。。格式如 [
-                //    'msgid' => '16666922367251035000_1668250656103',
-                //    'action' => 'switch',
-                //    'time' => 1668250655937,
-                //    'user' => 'felix_ye',
-                //    'seq' => 16,
-                // ]
-                if ('switch' === $message->getAction()) {
-                    $message->setFromUserId($datum['user']);
-                    $message->setMsgTime(CarbonImmutable::createFromTimestampMs($datum['time'])->toDateTimeImmutable());
-                } else {
-                    $message->setFromUserId($datum['from']);
-                    $message->setToList($datum['tolist']);
-                    $message->setRoomId($datum['roomid']);
-                    $message->setMsgTime(CarbonImmutable::createFromTimestampMs($datum['msgtime'])->toDateTimeImmutable());
-                }
-
-                $message->setSeq($datum['seq']);
-
-                if (isset($datum['msgtype'])) {
-                    $message->setMsgType($datum['msgtype']);
-                    $message->setContent($datum[$message->getMsgType()]);
-
-                    // 如果content里面有 sdkfileid ，那就说明有媒体？
-                    $content = $message->getContent();
-                    if (isset($content['sdkfileid'])) {
-                        $ext = $map[$message->getMsgType()] ?? 'raw';
-                        $file = $sdk->getMediaData($message->getContent()['sdkfileid'], $ext);
-                        $destinationPath = 'archive/' . uniqid() . '.' . $ext;
-                        $this->mountManager->write($destinationPath, $file);
-                        $key = $destinationPath;
-                        $content['fileKey'] = $key;
-                        $message->setContent($content);
-                    }
-                }
-
-                $this->entityManager->persist($message);
-                $this->entityManager->flush();
-            }
+    /**
+     * @param array<string, string> $extensionMap
+     */
+    private function handleMediaContent(ArchiveMessage $message, WxFinanceSDK $sdk, array $extensionMap): void
+    {
+        $content = $message->getContent();
+        if (!isset($content['sdkfileid'])) {
+            return;
         }
 
-        return Command::SUCCESS;
+        $ext = $extensionMap[$message->getMsgType()] ?? 'raw';
+        $file = $sdk->getMediaData($this->ensureString($content['sdkfileid'] ?? ''), $ext);
+        $destinationPath = 'archive/' . uniqid() . '.' . $ext;
+        $fileContent = file_get_contents($file->getPathname());
+        if (false === $fileContent) {
+            return;
+        }
+        $this->mountManager->write($destinationPath, $fileContent);
+
+        $content['fileKey'] = $destinationPath;
+        $message->setContent($content);
+    }
+
+    private function ensureString(mixed $value): string
+    {
+        if (is_string($value)) {
+            return $value;
+        }
+        if (is_numeric($value)) {
+            return (string) $value;
+        }
+
+        return '';
+    }
+
+    private function ensureInt(mixed $value): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
+        return 0;
+    }
+
+    /**
+     * @param array<string, mixed> $datum
+     */
+    private function setSwitchMessage(ArchiveMessage $message, array $datum): void
+    {
+        $user = $datum['user'] ?? null;
+        $message->setFromUserId(null !== $user ? $this->ensureString($user) : null);
+
+        $time = $this->ensureInt($datum['time'] ?? 0);
+        $message->setMsgTime(CarbonImmutable::createFromTimestampMs($time)->toDateTimeImmutable());
+    }
+
+    /**
+     * @param array<string, mixed> $datum
+     */
+    private function setChatMessage(ArchiveMessage $message, array $datum): void
+    {
+        $from = $datum['from'] ?? null;
+        $message->setFromUserId(null !== $from ? $this->ensureString($from) : null);
+
+        $toList = $datum['tolist'] ?? null;
+        if (is_array($toList)) {
+            $stringList = [];
+            foreach ($toList as $item) {
+                $stringItem = $this->ensureString($item);
+                if ('' !== $stringItem) {
+                    $stringList[] = $stringItem;
+                }
+            }
+            $message->setToList($stringList);
+        } else {
+            $message->setToList(null);
+        }
+
+        $roomId = $datum['roomid'] ?? null;
+        $message->setRoomId(null !== $roomId ? $this->ensureString($roomId) : null);
+
+        $msgTime = $this->ensureInt($datum['msgtime'] ?? 0);
+        $message->setMsgTime(CarbonImmutable::createFromTimestampMs($msgTime)->toDateTimeImmutable());
+    }
+
+    /**
+     * @param array<string, mixed> $datum
+     */
+    private function setMessageContent(ArchiveMessage $message, array $datum): void
+    {
+        if (!isset($datum['msgtype'])) {
+            return;
+        }
+
+        $msgType = $this->ensureString($datum['msgtype']);
+        $message->setMsgType($msgType);
+
+        $content = $datum[$msgType] ?? null;
+        if (is_array($content)) {
+            /** @var array<string, mixed> $typedContent */
+            $typedContent = $content;
+            $message->setContent($typedContent);
+        }
     }
 }

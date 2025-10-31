@@ -3,8 +3,21 @@ services:
   _defaults:
     autowire: true      # Automatically injects dependencies in your services.
     autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+    public: true
 
-  WechatWorkMsgAuditBundle\Command\:
-    resource: '../../Command/'
   WechatWorkMsgAuditBundle\Repository\:
     resource: '../../Repository/'
+  WechatWorkMsgAuditBundle\Command\:
+    resource: '../../Command/'
+  WechatWorkMsgAuditBundle\Factory\:
+    resource: '../../Factory/'
+  WechatWorkMsgAuditBundle\Controller\:
+    resource: '../../Controller/'
+  WechatWorkMsgAuditBundle\Service\:
+    resource: '../../Service/'
+
+  # 配置 FilesystemOperator 服务
+  League\Flysystem\FilesystemOperator:
+    factory: ['@WechatWorkMsgAuditBundle\Factory\FilesystemFactory', 'createFilesystem']
+    arguments:
+      $environment: '%kernel.environment%'
