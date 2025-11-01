@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace WechatWorkMsgAuditBundle\Tests\Request;
 
-use HttpClientBundle\Tests\Request\RequestTestCase;
+use HttpClientBundle\Test\RequestTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use WechatWorkMsgAuditBundle\Request\GetPermitUserListRequest;
 
 /**

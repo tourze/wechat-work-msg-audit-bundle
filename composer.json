@@ -27,10 +27,10 @@
     "tourze/doctrine-snowflake-bundle": "1.0.*",
     "tourze/easy-admin-enum-field-bundle": "1.0.*",
     "tourze/easy-admin-menu-bundle": "1.0.*",
-    "tourze/enum-extra": "1.*",
-    "tourze/http-client-bundle": "0.1.*",
+    "tourze/enum-extra": "1.0.*",
+    "tourze/http-client-bundle": "1.0.*",
     "tourze/symfony-cron-job-bundle": "1.0.*",
-    "tourze/symfony-dependency-service-loader": "1.*",
+    "tourze/symfony-dependency-service-loader": "1.0.*",
     "tourze/wechat-work-bundle": "0.1.*",
     "tourze/wechat-work-contracts": "0.0.*"
   },
