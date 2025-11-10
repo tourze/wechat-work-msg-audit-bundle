@@ -39,7 +39,7 @@ final class ArchiveMessageTest extends AbstractEntityTestCase
         yield 'roomId' => ['roomId', 'room123'];
         yield 'msgType' => ['msgType', 'text'];
         yield 'content' => ['content', ['text' => 'Hello World']];
-        yield 'corp' => ['corp', null];
+        // corp 属性为 CorpInterface 类型，避免序列化问题，由专门的测试方法覆盖
     }
 
     public function testIdGetterAndSetter(): void
