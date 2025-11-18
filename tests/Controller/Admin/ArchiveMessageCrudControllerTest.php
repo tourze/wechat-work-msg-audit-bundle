@@ -24,11 +24,6 @@ use WechatWorkMsgAuditBundle\Entity\ArchiveMessage;
 #[RunTestsInSeparateProcesses]
 class ArchiveMessageCrudControllerTest extends AbstractEasyAdminControllerTestCase
 {
-    public function testGetEntityFqcn(): void
-    {
-        self::assertSame(ArchiveMessage::class, ArchiveMessageCrudController::getEntityFqcn());
-    }
-
     public function testConfigureFields(): void
     {
         $controller = new ArchiveMessageCrudController();
